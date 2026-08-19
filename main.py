@@ -349,10 +349,13 @@ async def get_profile_picture_url(entity: Union[User, Chat], entity_id: int, req
         if not hasattr(entity, 'photo') or not entity.photo:
             return ("No Profile Picture", None)
 
+        has_video = getattr(entity.photo, 'has_video', False)
+
         try:
+            peer = await bot.resolve_peer(entity_id)
             result = await bot.invoke(
                 functions.photos.GetUserPhotos(
-                    user_id=await bot.resolve_peer(entity_id),
+                    user_id=peer,
                     offset=0,
                     max_id=0,
                     limit=1
@@ -370,28 +373,31 @@ async def get_profile_picture_url(entity: Union[User, Chat], entity_id: int, req
                     filename = f"profile_{entity_id}_animated.{ext}"
                     filepath = f"{TEMP_IMAGES_DIR}/{filename}"
 
-                    downloaded_path = await download_raw_video_profile(photo, filepath)
+                    try:
+                        downloaded_path = await bot.download_media(photo, file_name=filepath)
+                    except Exception:
+                        downloaded_path = await download_raw_video_profile(photo, filepath)
 
-                    if downloaded_path:
-                        asyncio.create_task(delete_image_after_delay(filepath, 45))
-                        return (str(request.url_for('temp_images', path=filename)), filepath)
-
+                    if downloaded_path and os.path.exists(downloaded_path):
+                        asyncio.create_task(delete_image_after_delay(downloaded_path, 45))
+                        return (str(request.url_for('temp_images', path=os.path.basename(downloaded_path))), downloaded_path)
         except Exception as e:
-            pass
+            print(f"GetUserPhotos exception: {e}")
 
         if hasattr(entity.photo, 'big_file_id') and entity.photo.big_file_id:
             try:
                 big_file_id = entity.photo.big_file_id
-                filename = f"profile_{entity_id}_640.jpg"
+                ext = "mp4" if has_video else "jpg"
+                filename = f"profile_{entity_id}_animated.{ext}" if has_video else f"profile_{entity_id}_640.jpg"
                 filepath = f"{TEMP_IMAGES_DIR}/{filename}"
 
                 downloaded_path = await bot.download_media(big_file_id, file_name=filepath)
 
-                if downloaded_path:
-                    asyncio.create_task(delete_image_after_delay(filepath, 45))
-                    return (str(request.url_for('temp_images', path=filename)), filepath)
+                if downloaded_path and os.path.exists(downloaded_path):
+                    asyncio.create_task(delete_image_after_delay(downloaded_path, 45))
+                    return (str(request.url_for('temp_images', path=os.path.basename(downloaded_path))), downloaded_path)
             except Exception as e:
-                pass
+                print(f"download_media big_file_id exception: {e}")
 
         username = getattr(entity, 'username', None)
         if username:
@@ -407,6 +413,7 @@ async def get_profile_picture_url(entity: Union[User, Chat], entity_id: int, req
             else:
                 return ("Has Profile Picture (no public username)", None)
         return ("No Profile Picture", None)
+
 
 
 
