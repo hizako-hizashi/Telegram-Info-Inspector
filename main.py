@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -172,16 +173,33 @@ async def upload_to_tmpfiles(file_path: str) -> str:
         if response.status_code == 200:
             response_data = response.json()
             if response_data.get('status') == 'success':
-                file_url = response_data.get('data', {}).get('url', '')
-                if file_url and '/dl/' not in file_url:
-                    file_url = file_url.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
-                return file_url
+                page_url = response_data.get('data', {}).get('url', '')
+                if page_url:
+                    try:
+                        page_resp = await loop.run_in_executor(
+                            None,
+                            lambda: requests.get(page_url, timeout=5)
+                        )
+                        if page_resp.status_code == 200:
+                            match = re.search(r'id=["\']img_preview["\']\s+src=["\']([^"\']+)["\']', page_resp.text) or \
+                                    re.search(r'class=["\']download["\']\s+href=["\']([^"\']+)["\']', page_resp.text)
+                            if match:
+                                direct_dl_url = match.group(1)
+                                if direct_dl_url.startswith("http"):
+                                    return direct_dl_url
+                    except Exception as scrape_err:
+                        print(f"Error scraping tmpfiles page for direct link: {scrape_err}")
+
+                    if '/dl/' not in page_url:
+                        page_url = page_url.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
+                    return page_url
             else:
                 return f"tmpfiles upload failed: {response_data.get('message', 'Unknown error')}"
         else:
             return f"tmpfiles request failed with status code {response.status_code}"
     except Exception as e:
         return f"Error uploading to tmpfiles: {str(e)}"
+
 
 def is_real_bot(user: User) -> bool:
     return getattr(user, "is_bot", False)
@@ -346,7 +364,10 @@ async def get_profile_picture_url(entity: Union[User, Chat], entity_id: int, req
                 video_sizes = getattr(photo, 'video_sizes', None)
 
                 if video_sizes and len(video_sizes) > 0:
-                    filename = f"profile_{entity_id}_animated.mp4"
+                    video_size = video_sizes[-1]
+                    v_type = str(getattr(video_size, 'type', '')).lower()
+                    ext = "webm" if v_type == 'u' or "webm" in v_type else "mp4"
+                    filename = f"profile_{entity_id}_animated.{ext}"
                     filepath = f"{TEMP_IMAGES_DIR}/{filename}"
 
                     downloaded_path = await download_raw_video_profile(photo, filepath)
@@ -354,6 +375,7 @@ async def get_profile_picture_url(entity: Union[User, Chat], entity_id: int, req
                     if downloaded_path:
                         asyncio.create_task(delete_image_after_delay(filepath, 45))
                         return (str(request.url_for('temp_images', path=filename)), filepath)
+
         except Exception as e:
             pass
 
