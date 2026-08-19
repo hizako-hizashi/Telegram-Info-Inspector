@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Telegram Info Checker | Advanced Profile & Entity Inspector</title>
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --card-bg: rgba(21, 29, 46, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-blue: #0088cc;
+      --accent-cyan: #22d3ee;
+      --accent-purple: #a855f7;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --success-green: #10b981;
+      --warning-amber: #f59e0b;
+      --danger-red: #ef4444;
+      --glow-blue: rgba(0, 136, 204, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(0, 136, 204, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.12) 0%, transparent 40%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1rem;
+    }
+
+    /* Navbar Header */
+    .header {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+      padding: 0.25rem 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: white;
+      box-shadow: 0 4px 16px var(--glow-blue);
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      background: linear-gradient(to right, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: rgba(0, 136, 204, 0.2);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      padding: 0.2rem 0.55rem;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Main Container Card */
+    .container {
+      width: 100%;
+      max-width: 680px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 1.75rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .search-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .search-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .search-title i {
+      color: var(--accent-cyan);
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .input-prefix {
+      position: absolute;
+      left: 1.1rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 1.1rem;
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 1rem 1rem 1rem 2.6rem;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      font-size: 1.05rem;
+      font-family: inherit;
+      color: var(--text-main);
+      outline: none;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-blue);
+      background: rgba(15, 23, 42, 0.9);
+      box-shadow: 0 0 0 4px rgba(0, 136, 204, 0.25);
+    }
+
+    .search-input::placeholder {
+      color: #64748b;
+      font-weight: 400;
+    }
+
+    /* Controls Stack (Full-width clean layout) */
+    .controls-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+    }
+
+    .format-pills {
+      display: flex;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.75);
+      padding: 5px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      gap: 4px;
+    }
+
+    .format-pill {
+      flex: 1;
+      position: relative;
+    }
+
+    .format-pill input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .format-pill label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      padding: 0.75rem 0.5rem;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .format-pill input[type="radio"]:checked + label {
+      background: linear-gradient(135deg, var(--accent-blue), #0284c7);
+      color: white;
+      box-shadow: 0 3px 10px rgba(0, 136, 204, 0.4);
+    }
+
+    .btn-search {
+      width: 100%;
+      padding: 0.95rem 1.5rem;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.55rem;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+    }
+
+    .btn-search:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+    }
+
+    .btn-search:active {
+      transform: translateY(0);
+    }
+
+    /* Result Display */
+    .result-container {
+      margin-top: 1rem;
+      min-height: 80px;
+    }
+
+    .loading-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1rem;
+      gap: 1rem;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-left-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Visual Profile Card UI */
+    .profile-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      overflow: hidden;
+      animation: fadeIn 0.35s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .profile-header {
+      padding: 1.5rem;
+      background: linear-gradient(135deg, rgba(0, 136, 204, 0.2), rgba(168, 85, 247, 0.15));
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .avatar-wrapper {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .profile-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      background: #1e293b;
+    }
+
+    .avatar-fallback {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      color: white;
+      font-weight: 700;
+      border: 3px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .profile-meta h3 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: white;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .profile-username {
+      font-size: 0.92rem;
+      color: var(--accent-cyan);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .badge-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.6rem;
+    }
+
+    .tag-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.55rem;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .tag-premium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .tag-verified { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .tag-bot { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .tag-scam { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .tag-dc { background: rgba(0, 136, 204, 0.2); color: #38bdf8; border: 1px solid rgba(0, 136, 204, 0.4); }
+
+    .bio-card {
+      padding: 1rem 1.5rem;
+      background: rgba(30, 41, 59, 0.5);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+
+    .bio-card i {
+      color: var(--accent-cyan);
+      margin-right: 0.4rem;
+    }
+
+    .info-grid {
+      padding: 1.25rem 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.85rem;
+    }
+
+    .info-item {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+    }
+
+    .info-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .info-value {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text-main);
+      word-break: break-all;
+    }
+
+    .card-actions {
+      padding: 1rem 1.5rem;
+      background: rgba(15, 23, 42, 0.9);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-action {
+      padding: 0.6rem 1rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-action:hover {
+      background: rgba(255, 255, 255, 0.16);
+      color: white;
+    }
+
+    /* Pre / Code Display */
+    .code-box {
+      position: relative;
+      background: #0b1120;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 1.25rem;
+      overflow: hidden;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .code-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    pre {
+      font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 480px;
+    }
+
+    .error-box {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 12px;
+      padding: 1.25rem;
+      color: #fca5a5;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .error-box a {
+      color: var(--accent-cyan);
+      font-weight: 700;
+      text-decoration: underline;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 2rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    footer a {
+      color: var(--accent-cyan);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--success-green);
+      color: white;
+      padding: 0.75rem 1.25rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 480px) {
+      body {
+        padding: 1rem 0.75rem;
+      }
+
+      .container {
+        padding: 1.25rem;
+        border-radius: 16px;
+      }
+
+      .format-pill label {
+        font-size: 0.8rem;
+        padding: 0.65rem 0.25rem;
+        gap: 0.3rem;
+      }
+
+      .profile-header {
+        flex-direction: column;
+        text-align: center;
+        padding: 1.25rem 1rem;
+      }
+
+      .profile-meta h3 {
+        justify-content: center;
+      }
+
+      .profile-username {
+        justify-content: center;
+      }
+
+      .badge-list {
+        justify-content: center;
+      }
+
+      .card-actions {
+        flex-direction: column;
+      }
+
+      .btn-action {
+        justify-content: center;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header Branding -->
+  <header class="header">
+    <a href="#" class="brand">
+      <div class="brand-icon">
+        <i class="fa-paper-plane fa-telegram"></i>
+      </div>
+      <div>
+        <div class="brand-title">Telegram Info Checker</div>
+      </div>
+    </a>
+    <span class="brand-badge">PRO v2.0</span>
+  </header>
+
+  <!-- Main Search Container -->
+  <div class="container">
+    <div class="search-section">
+      <div class="search-title">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        Inspect User, Bot, Group or Channel
+      </div>
+      
+      <div class="input-wrapper">
+        <span class="input-prefix">@</span>
+        <input type="text" id="usernameInput" class="search-input" placeholder="username or ID (e.g. durov or 777000)" autocomplete="off" />
+      </div>
+
+      <div class="controls-stack">
+        <div class="format-pills">
+          <div class="format-pill">
+            <input type="radio" id="formatCard" name="outputFormat" value="card" checked>
+            <label for="formatCard"><i class="fa-solid fa-id-card"></i> Card</label>
+          </div>
+          <div class="format-pill">
+            <input type="radio" id="formatText" name="outputFormat" value="text">
+            <label for="formatText"><i class="fa-solid fa-file-lines"></i> Text</label>
+          </div>
+          <div class="format-pill">
+            <input type="radio" id="formatJson" name="outputFormat" value="json">
+            <label for="formatJson"><i class="fa-solid fa-code"></i> JSON</label>
+          </div>
+        </div>
+
+        <button class="btn-search" onclick="fetchUserInfo()">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          Search Info
+        </button>
+      </div>
+    </div>
+
+    <!-- Output Box -->
+    <div id="usernameResult" class="result-container"></div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <i class="fa-solid fa-circle-check"></i>
+    <span id="toastMsg">Copied to clipboard!</span>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    Telegram Info Inspector &middot; Powered by Pyrogram MTProto Engine
+  </footer>
+
+  <script>
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      toastMsg.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2500);
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("Copied to clipboard!");
+      }).catch(err => {
+        showToast("Failed to copy");
+      });
+    }
+
+    function renderVisualCard(data) {
+      if (data.type === 'user') {
+        const info = data.basic_info || {};
+        const status = data.account_status || {};
+        const network = data.network_status || {};
+        const picUrl = (data.profile_picture && data.profile_picture.url && !data.profile_picture.url.includes("No Profile Picture") && !data.profile_picture.url.includes("Has Profile Picture")) ? data.profile_picture.url : null;
+        
+        const firstLetter = (info.name || 'U').charAt(0).toUpperCase();
+        
+        let badgesHtml = '';
+        if (status.is_premium) badgesHtml += `<span class="tag-badge tag-premium"><i class="fa-solid fa-star"></i> Premium</span>`;
+        if (status.is_verified) badgesHtml += `<span class="tag-badge tag-verified"><i class="fa-solid fa-circle-check"></i> Verified</span>`;
+        if (status.is_bot) badgesHtml += `<span class="tag-badge tag-bot"><i class="fa-solid fa-robot"></i> Bot</span>`;
+        if (status.is_scam) badgesHtml += `<span class="tag-badge tag-scam"><i class="fa-solid fa-triangle-exclamation"></i> Scam</span>`;
+        if (status.is_fake) badgesHtml += `<span class="tag-badge tag-scam"><i class="fa-solid fa-user-ninja"></i> Fake</span>`;
+        if (network.data_center && network.data_center !== 'Unknown') {
+          badgesHtml += `<span class="tag-badge tag-dc"><i class="fa-solid fa-server"></i> DC: ${network.data_center.split(',')[0]}</span>`;
+        }
+
+        return `
+          <div class="profile-card">
+            <div class="profile-header">
+              <div class="avatar-wrapper">
+                ${picUrl ? `<img src="${picUrl}" class="profile-avatar" alt="Avatar" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${firstLetter}</div>'">` : `<div class="avatar-fallback">${firstLetter}</div>`}
+              </div>
+              <div class="profile-meta">
+                <h3>${info.name || 'Telegram User'}</h3>
+                <div class="profile-username">
+                  <i class="fa-solid fa-at"></i> ${info.username ? info.username.replace('@','') : 'No Username'}
+                </div>
+                <div class="badge-list">${badgesHtml}</div>
+              </div>
+            </div>
+
+            ${info.bio && info.bio !== 'No bio available' ? `
+              <div class="bio-card">
+                <i class="fa-solid fa-quote-left"></i> ${info.bio}
+              </div>
+            ` : ''}
+
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label"><i class="fa-solid fa-fingerprint"></i> User ID</div>
+                <div class="info-value">${info.user_id || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label"><i class="fa-solid fa-globe"></i> Language Code</div>
+                <div class="info-value">${info.language_code || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label"><i class="fa-solid fa-signal"></i> Network Status</div>
+                <div class="info-value">${network.status || 'Unknown'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label"><i class="fa-solid fa-clock"></i> Last Online</div>
+                <div class="info-value">${network.last_online || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label"><i class="fa-solid fa-phone"></i> Phone Number</div>
+                <div class="info-value">${info.phone_number || 'Hidden'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label"><i class="fa-solid fa-shield-halved"></i> Account Type</div>
+                <div class="info-value">${status.is_bot ? 'Bot Account' : 'Personal User'}</div>
+              </div>
+            </div>
+
+            <div class="card-actions">
+              ${info.username && info.username !== 'No Username' ? `
+                <a href="https://t.me/${info.username.replace('@','')}" target="_blank" class="btn-action">
+                  <i class="fa-brands fa-telegram"></i> Open in Telegram
+                </a>
+              ` : ''}
+              <button class="btn-action" onclick="copyToClipboard('${info.user_id}')">
+                <i class="fa-regular fa-copy"></i> Copy User ID
+              </button>
+              <button class="btn-action" onclick="copyToClipboard(JSON.stringify(${JSON.stringify(data).replace(/"/g, '&quot;')}, null, 2))">
+                <i class="fa-solid fa-code"></i> Copy Raw JSON
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (data.type === 'group' || data.type === 'channel') {
+        const picUrl = (data.profile_picture && data.profile_picture.url && !data.profile_picture.url.includes("No Profile Picture")) ? data.profile_picture.url : null;
+        const firstLetter = (data.title || 'C').charAt(0).toUpperCase();
+
+        return `
+          <div class="profile-card">
+            <div class="profile-header">
+              <div class="avatar-wrapper">
+                ${picUrl ? `<img src="${picUrl}" class="profile-avatar" alt="Avatar" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${firstLetter}</div>'">` : `<div class="avatar-fallback">${firstLetter}</div>`}
+              </div>
+              <div class="profile-meta">
+                <h3>${data.title || 'Chat Entity'}</h3>
+                <div class="profile-username">
+                  <i class="fa-solid fa-at"></i> ${data.username ? data.username.replace('@','') : 'Private Chat'}
+                </div>
+                <div class="badge-list">
+                  <span class="tag-badge tag-bot">${data.entity_type || 'Group/Channel'}</span>
+                  ${data.verified ? '<span class="tag-badge tag-verified"><i class="fa-solid fa-circle-check"></i> Verified</span>' : ''}
+                  ${data.scam ? '<span class="tag-badge tag-scam"><i class="fa-solid fa-triangle-exclamation"></i> Scam</span>' : ''}
+                </div>
+              </div>
+            </div>
+
+            ${data.description && data.description !== 'No description' ? `
+              <div class="bio-card">
+                <i class="fa-solid fa-circle-info"></i> ${data.description}
+              </div>
+            ` : ''}
+
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label"><i class="fa-solid fa-hashtag"></i> Chat ID</div>
+                <div class="info-value">${data.chat_id || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label"><i class="fa-solid fa-users"></i> Members Count</div>
+                <div class="info-value">${data.members_count || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label"><i class="fa-solid fa-shield-cat"></i> Safety Status</div>
+                <div class="info-value">${data.safety_status || 'Safe'}</div>
+              </div>
+            </div>
+
+            <div class="card-actions">
+              ${data.username && data.username !== 'N/A' ? `
+                <a href="https://t.me/${data.username.replace('@','')}" target="_blank" class="btn-action">
+                  <i class="fa-brands fa-telegram"></i> Open in Telegram
+                </a>
+              ` : ''}
+              <button class="btn-action" onclick="copyToClipboard('${data.chat_id}')">
+                <i class="fa-regular fa-copy"></i> Copy Chat ID
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      return `<div class="code-box"><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+    }
+
+    async function fetchUserInfo() {
+      const input = document.getElementById('usernameInput').value.trim();
+      const resultBox = document.getElementById('usernameResult');
+      const selectedFormat = document.querySelector('input[name="outputFormat"]:checked').value;
+
+      if (!input) {
+        resultBox.innerHTML = `
+          <div class="error-box">
+            <i class="fa-solid fa-triangle-exclamation"></i> Please enter a Telegram username or numeric ID.
+          </div>`;
+        return;
+      }
+
+      const username = input.replace(/^@/, '');
+
+      resultBox.innerHTML = `
+        <div class="loading-box">
+          <div class="spinner"></div>
+          <div>Fetching Telegram MTProto Information...</div>
+        </div>
+      `;
+
+      try {
+        const fetchFormat = (selectedFormat === 'card') ? 'json' : selectedFormat;
+        const response = await fetch(`/get_user_info?username=${encodeURIComponent(username)}&format=${fetchFormat}`);
+
+        if (response.ok) {
+          if (selectedFormat === 'card') {
+            const data = await response.json();
+            resultBox.innerHTML = renderVisualCard(data);
+          } else if (selectedFormat === 'json') {
+            const data = await response.json();
+            resultBox.innerHTML = `
+              <div class="code-box">
+                <div class="code-header">
+                  <span class="code-title"><i class="fa-solid fa-code"></i> JSON Output</span>
+                  <button class="btn-action" onclick="copyToClipboard(JSON.stringify(${JSON.stringify(data).replace(/"/g, '&quot;')}, null, 2))">
+                    <i class="fa-regular fa-copy"></i> Copy
+                  </button>
+                </div>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+              </div>`;
+          } else {
+            const textData = await response.text();
+            resultBox.innerHTML = `
+              <div class="code-box">
+                <div class="code-header">
+                  <span class="code-title"><i class="fa-solid fa-file-lines"></i> Formatted Text Output</span>
+                  <button class="btn-action" onclick="copyToClipboard(\`${textData.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">
+                    <i class="fa-regular fa-copy"></i> Copy
+                  </button>
+                </div>
+                <pre>${textData}</pre>
+              </div>`;
+          }
+        } else {
+          const errData = await response.json().catch(() => ({ detail: 'Failed to retrieve information.' }));
+          resultBox.innerHTML = `
+            <div class="error-box">
+              <i class="fa-solid fa-circle-xmark"></i> <strong>Error (${response.status}):</strong> ${errData.detail || 'User or Chat not found.'}
+            </div>`;
+        }
+      } catch (err) {
+        resultBox.innerHTML = `
+          <div class="error-box">
+            <i class="fa-solid fa-wifi"></i> <strong>Network Error:</strong> ${err.message}
+          </div>`;
+      }
+    }
+
+    // Allow Enter key search
+    document.getElementById('usernameInput').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        fetchUserInfo();
+      }
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,6 @@
+requests
+fastapi
+uvicorn[standard]
+pyrogram
+TgCrypto
+python-dateutil
