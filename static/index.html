@@ -700,7 +700,8 @@
         let rawUrl = (data.profile_picture && data.profile_picture.url && data.profile_picture.url !== "No Profile Picture" && !data.profile_picture.url.toLowerCase().includes("failed")) ? data.profile_picture.url : null;
         let picUrl = rawUrl || fallbackTgUrl;
         
-        const isVideo = picUrl && (picUrl.endsWith('.mp4') || picUrl.endsWith('.webm') || picUrl.includes('animated'));
+        const isVideo = picUrl && (picUrl.toLowerCase().includes('.mp4') || picUrl.toLowerCase().includes('.webm') || picUrl.toLowerCase().includes('animated') || picUrl.toLowerCase().includes('video'));
+
         const firstLetter = (info.name || 'U').charAt(0).toUpperCase();
         
         let badgesHtml = '';
