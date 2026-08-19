@@ -693,8 +693,14 @@
         const info = data.basic_info || {};
         const status = data.account_status || {};
         const network = data.network_status || {};
-        const picUrl = (data.profile_picture && data.profile_picture.url && !data.profile_picture.url.includes("No Profile Picture") && !data.profile_picture.url.includes("Has Profile Picture")) ? data.profile_picture.url : null;
         
+        const cleanUser = (info.username && info.username !== 'No Username') ? info.username.replace('@','').trim() : '';
+        const fallbackTgUrl = cleanUser ? `https://t.me/i/userpic/320/${cleanUser}.jpg` : null;
+
+        let rawUrl = (data.profile_picture && data.profile_picture.url && data.profile_picture.url !== "No Profile Picture" && !data.profile_picture.url.toLowerCase().includes("failed")) ? data.profile_picture.url : null;
+        let picUrl = rawUrl || fallbackTgUrl;
+        
+        const isVideo = picUrl && (picUrl.endsWith('.mp4') || picUrl.endsWith('.webm') || picUrl.includes('animated'));
         const firstLetter = (info.name || 'U').charAt(0).toUpperCase();
         
         let badgesHtml = '';
@@ -711,8 +717,15 @@
           <div class="profile-card">
             <div class="profile-header">
               <div class="avatar-wrapper">
-                ${picUrl ? `<img src="${picUrl}" class="profile-avatar" alt="Avatar" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${firstLetter}</div>'">` : `<div class="avatar-fallback">${firstLetter}</div>`}
+                ${isVideo ? `
+                  <video src="${picUrl}" class="profile-avatar" autoplay loop muted playsinline onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${firstLetter}</div>'"></video>
+                ` : (picUrl ? `
+                  <img src="${picUrl}" class="profile-avatar" alt="Avatar" onerror="if(this.src!=='${fallbackTgUrl}' && '${fallbackTgUrl}'){this.src='${fallbackTgUrl}';}else{this.outerHTML='<div class=\\'avatar-fallback\\'>${firstLetter}</div>';}">
+                ` : `
+                  <div class="avatar-fallback">${firstLetter}</div>
+                `)}
               </div>
+
               <div class="profile-meta">
                 <h3>${info.name || 'Telegram User'}</h3>
                 <div class="profile-username">
@@ -743,7 +756,7 @@
               </div>
               <div class="info-item">
                 <div class="info-label"><i class="fa-solid fa-clock"></i> Last Online</div>
-                <div class="info-value">${network.last_online || 'N/A'}</div>
+                <div class="info-value">${(network.last_online && network.last_online !== 'N/A') ? network.last_online : (network.status || 'N/A')}</div>
               </div>
               <div class="info-item">
                 <div class="info-label"><i class="fa-solid fa-phone"></i> Phone Number</div>
