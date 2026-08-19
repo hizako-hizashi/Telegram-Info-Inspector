@@ -459,22 +459,52 @@ async def get_user_info(
         dc_location = DC_LOCATIONS.get(dc_id_value, "Unknown") if dc_id_value is not None else "Unknown"
 
         status = "Unknown"
+        last_online_str = "N/A"
+
         if hasattr(user, 'status') and user.status:
             status_str = str(user.status).upper()
-            if "ONLINE" in status_str:
+            if "ONLINE" in status_str and "RECENTLY" not in status_str:
                 status = "Online"
+                last_online_str = "Currently Online"
             elif "OFFLINE" in status_str:
                 status = "Offline"
+                if hasattr(user, 'last_online_date') and user.last_online_date:
+                    last_online_str = user.last_online_date.strftime('%Y-%m-%d %H:%M:%S UTC')
+                else:
+                    last_online_str = "Offline"
             elif "RECENTLY" in status_str:
                 status = "Recently online"
+                last_online_str = "Recently"
+            elif "WEEK" in status_str:
+                status = "Within a week"
+                last_online_str = "Last seen within a week"
+            elif "MONTH" in status_str:
+                status = "Within a month"
+                last_online_str = "Last seen within a month"
+            elif "LONG_AGO" in status_str:
+                status = "Long ago"
+                last_online_str = "Last seen long ago"
 
         full_profile_pic_url, local_file_path = await get_profile_picture_url(user, user.id, request)
 
+        username_clean = user.username if hasattr(user, 'username') and user.username else None
+        public_tg_userpic = f"https://t.me/i/userpic/320/{username_clean}.jpg" if username_clean else None
+
         tmpfiles_url = "No Profile Picture"
+
         if local_file_path:
-            tmpfiles_url = await upload_to_tmpfiles(local_file_path)
-        elif full_profile_pic_url and full_profile_pic_url not in ["No Profile Picture", "Has Profile Picture (direct URL unavailable)", "Has Profile Picture (no public username)"]:
+            uploaded = await upload_to_tmpfiles(local_file_path)
+            if uploaded and uploaded.startswith("http") and "failed" not in uploaded.lower():
+                tmpfiles_url = uploaded
+            elif full_profile_pic_url and ("http://" in full_profile_pic_url or "https://" in full_profile_pic_url or full_profile_pic_url.startswith("/")):
+                tmpfiles_url = full_profile_pic_url
+            elif public_tg_userpic:
+                tmpfiles_url = public_tg_userpic
+        elif full_profile_pic_url and ("http://" in full_profile_pic_url or "https://" in full_profile_pic_url or full_profile_pic_url.startswith("/")):
             tmpfiles_url = full_profile_pic_url
+        elif public_tg_userpic:
+            tmpfiles_url = public_tg_userpic
+
 
         header = "Bot Info" if is_real_bot(user) else "User Info"
 
@@ -518,7 +548,7 @@ async def get_user_info(
             "network_status": {
                 "data_center": dc_location,
                 "status": status,
-                "last_online": user.last_online_date.strftime('%Y-%m-%d %H:%M:%S UTC') if hasattr(user, 'last_online_date') and user.last_online_date else 'N/A',
+                "last_online": last_online_str,
                 "next_offline": user.next_offline_date.strftime('%Y-%m-%d %H:%M:%S UTC') if hasattr(user, 'next_offline_date') and user.next_offline_date else 'N/A'
             },
             "customization": {
