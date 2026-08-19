@@ -14,8 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pyrogram.client import Client
 from pyrogram.types import User, Chat, ChatPreview, ChatPhoto
-from pyrogram.errors import PeerIdInvalid
-from pyrogram.raw import functions, types
+from pyrogram.errors import PeerIdInvalid, FloodWait, RPCError
 
 
 KURIGRAM_AVAILABLE = False
@@ -42,6 +41,7 @@ bot = Client(
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
     in_memory=True,
+    sleep_threshold=10,
     workdir="/tmp" if IS_VERCEL else "."
 )
 
@@ -52,7 +52,20 @@ async def ensure_bot_started():
     if not getattr(bot, 'is_connected', False):
         async with client_lock:
             if not getattr(bot, 'is_connected', False):
-                await bot.start()
+                try:
+                    await bot.start()
+                except FloodWait as e:
+                    print(f"Pyrogram FloodWait: {e.value}s")
+                    raise HTTPException(
+                        status_code=429,
+                        detail=f"Telegram API Rate Limit (FloodWait): Telegram requested a wait of {e.value} seconds."
+                    )
+                except Exception as e:
+                    print(f"Error starting Pyrogram bot client: {e}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Bot Client Connection Error: {str(e)}"
+                    )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -430,6 +443,11 @@ async def get_user_info(
                 "common group/channel with the bot before their profile can be fetched."
             ),
         )
+    except FloodWait as e:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Telegram API Limit (FloodWait): Telegram requested a wait of {e.value} seconds."
+        )
     except Exception:
         try:
             chat_result = await bot.get_chat(target)
@@ -443,8 +461,19 @@ async def get_user_info(
                     entity_type = "chat"
             else:
                 entity_type = "chat"
+        except PeerIdInvalid:
+            raise HTTPException(
+                status_code=403,
+                detail="Bot has no access to this entity."
+            )
+        except FloodWait as e:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Telegram API Limit (FloodWait): Telegram requested a wait of {e.value} seconds."
+            )
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Error: {e}")
+
 
     if entity_type == "user":
         if not isinstance(obj, User):
