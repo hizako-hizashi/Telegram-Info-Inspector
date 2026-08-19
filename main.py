@@ -181,8 +181,16 @@ async def upload_to_tmpfiles(file_path: str) -> str:
                             lambda: requests.get(page_url, timeout=5)
                         )
                         if page_resp.status_code == 200:
-                            match = re.search(r'id=["\']img_preview["\']\s+src=["\']([^"\']+)["\']', page_resp.text) or \
-                                    re.search(r'class=["\']download["\']\s+href=["\']([^"\']+)["\']', page_resp.text)
+                            is_video = file_path.lower().endswith(('.mp4', '.webm')) or 'animated' in file_path.lower()
+                            
+                            if is_video:
+                                match = re.search(r'class=["\']download["\']\s+href=["\']([^"\']+)["\']', page_resp.text) or \
+                                        re.search(r'<video[^>]+src=["\']([^"\']+)["\']', page_resp.text) or \
+                                        re.search(r'href=["\'](https://tmpfiles\.org/dl/[^"\']+\.(?:mp4|webm))["\']', page_resp.text)
+                            else:
+                                match = re.search(r'class=["\']download["\']\s+href=["\']([^"\']+)["\']', page_resp.text) or \
+                                        re.search(r'id=["\']img_preview["\']\s+src=["\']([^"\']+)["\']', page_resp.text)
+
                             if match:
                                 direct_dl_url = match.group(1)
                                 if direct_dl_url.startswith("http"):
@@ -199,6 +207,7 @@ async def upload_to_tmpfiles(file_path: str) -> str:
             return f"tmpfiles request failed with status code {response.status_code}"
     except Exception as e:
         return f"Error uploading to tmpfiles: {str(e)}"
+
 
 
 def is_real_bot(user: User) -> bool:
