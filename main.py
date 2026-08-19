@@ -13,9 +13,16 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
 from pyrogram.client import Client
 from pyrogram.types import User, Chat, ChatPreview, ChatPhoto
 from pyrogram.errors import PeerIdInvalid, FloodWait, RPCError
+from pyrogram.raw import functions, types
+
 
 
 KURIGRAM_AVAILABLE = False
@@ -313,7 +320,7 @@ async def download_raw_video_profile(photo, filepath: str) -> Optional[str]:
         if not hasattr(photo, 'video_sizes') or not photo.video_sizes:
             return None
 
-        video_size = photo.video_sizes[-1]
+        video_size = photo.video_sizes[0]
 
         location = types.InputPhotoFileLocation(
             id=photo.id,
@@ -343,14 +350,15 @@ async def download_raw_video_profile(photo, filepath: str) -> Optional[str]:
             file_data += chunk.bytes
             offset += len(chunk.bytes)
 
-            if len(file_data) >= video_size.size:
+            if len(file_data) >= getattr(video_size, 'size', 0):
                 break
 
         with open(filepath, "wb") as f:
             f.write(file_data)
 
         return filepath
-    except Exception:
+    except Exception as e:
+        print(f"Error in download_raw_video_profile: {e}")
         return None
 
 async def get_profile_picture_url(entity: Union[User, Chat], entity_id: int, request: Request) -> tuple[str, Optional[str]]:
@@ -376,16 +384,13 @@ async def get_profile_picture_url(entity: Union[User, Chat], entity_id: int, req
                 video_sizes = getattr(photo, 'video_sizes', None)
 
                 if video_sizes and len(video_sizes) > 0:
-                    video_size = video_sizes[-1]
+                    video_size = video_sizes[0]
                     v_type = str(getattr(video_size, 'type', '')).lower()
                     ext = "webm" if v_type == 'u' or "webm" in v_type else "mp4"
                     filename = f"profile_{entity_id}_animated.{ext}"
                     filepath = f"{TEMP_IMAGES_DIR}/{filename}"
 
-                    try:
-                        downloaded_path = await bot.download_media(photo, file_name=filepath)
-                    except Exception:
-                        downloaded_path = await download_raw_video_profile(photo, filepath)
+                    downloaded_path = await download_raw_video_profile(photo, filepath)
 
                     if downloaded_path and os.path.exists(downloaded_path):
                         asyncio.create_task(delete_image_after_delay(downloaded_path, 45))
@@ -407,6 +412,7 @@ async def get_profile_picture_url(entity: Union[User, Chat], entity_id: int, req
                     return (str(request.url_for('temp_images', path=os.path.basename(downloaded_path))), downloaded_path)
             except Exception as e:
                 print(f"download_media big_file_id exception: {e}")
+
 
         username = getattr(entity, 'username', None)
         if username:
