@@ -320,7 +320,13 @@ async def download_raw_video_profile(photo, filepath: str) -> Optional[str]:
         if not hasattr(photo, 'video_sizes') or not photo.video_sizes:
             return None
 
-        video_size = photo.video_sizes[0]
+        # সবচেয়ে বড় video size বেছে নাও (size attribute দিয়ে sort করে)
+        video_sizes_sorted = sorted(
+            photo.video_sizes,
+            key=lambda vs: getattr(vs, 'size', 0),
+            reverse=True
+        )
+        video_size = video_sizes_sorted[0]
 
         location = types.InputPhotoFileLocation(
             id=photo.id,
@@ -331,7 +337,8 @@ async def download_raw_video_profile(photo, filepath: str) -> Optional[str]:
 
         file_data = b""
         offset = 0
-        limit = 524288
+        limit = 524288  # 512 KB chunks
+        expected_size = getattr(video_size, 'size', 0)
 
         while True:
             chunk = await bot.invoke(
@@ -350,8 +357,12 @@ async def download_raw_video_profile(photo, filepath: str) -> Optional[str]:
             file_data += chunk.bytes
             offset += len(chunk.bytes)
 
-            if len(file_data) >= getattr(video_size, 'size', 0):
+            # expected_size থাকলে সেটা দিয়ে চেক করো, না হলে chunk শেষ হলে থামো
+            if expected_size > 0 and len(file_data) >= expected_size:
                 break
+
+        if not file_data:
+            return None
 
         with open(filepath, "wb") as f:
             f.write(file_data)
@@ -384,9 +395,16 @@ async def get_profile_picture_url(entity: Union[User, Chat], entity_id: int, req
                 video_sizes = getattr(photo, 'video_sizes', None)
 
                 if video_sizes and len(video_sizes) > 0:
-                    video_size = video_sizes[0]
-                    v_type = str(getattr(video_size, 'type', '')).lower()
-                    ext = "webm" if v_type == 'u' or "webm" in v_type else "mp4"
+                    # সবচেয়ে বড় video size বেছে নাও extension detect করতে
+                    video_sizes_sorted = sorted(
+                        video_sizes,
+                        key=lambda vs: getattr(vs, 'size', 0),
+                        reverse=True
+                    )
+                    best_video_size = video_sizes_sorted[0]
+                    v_type = str(getattr(best_video_size, 'type', '')).lower()
+                    # Telegram: type 'u' = webm animated, 'v' = mp4 looping, etc.
+                    ext = "webm" if v_type in ('u',) else "mp4"
                     filename = f"profile_{entity_id}_animated.{ext}"
                     filepath = f"{TEMP_IMAGES_DIR}/{filename}"
 
@@ -395,6 +413,58 @@ async def get_profile_picture_url(entity: Union[User, Chat], entity_id: int, req
                     if downloaded_path and os.path.exists(downloaded_path):
                         asyncio.create_task(delete_image_after_delay(downloaded_path, 45))
                         return (str(request.url_for('temp_images', path=os.path.basename(downloaded_path))), downloaded_path)
+
+                else:
+                    # Static image — photo.sizes থেকে সবচেয়ে বড় size বেছে নাও
+                    # Telegram size types (ছোট থেকে বড়): s, m, x, y, w, a, b, c, d
+                    SIZE_ORDER = ['s', 'm', 'x', 'y', 'w', 'a', 'b', 'c', 'd']
+                    photo_sizes = getattr(photo, 'sizes', [])
+                    best_photo_size = None
+                    for size_type in reversed(SIZE_ORDER):
+                        match = next((s for s in photo_sizes if getattr(s, 'type', '') == size_type), None)
+                        if match:
+                            best_photo_size = match
+                            break
+                    if not best_photo_size and photo_sizes:
+                        best_photo_size = photo_sizes[-1]
+
+                    if best_photo_size:
+                        try:
+                            location = types.InputPhotoFileLocation(
+                                id=photo.id,
+                                access_hash=photo.access_hash,
+                                file_reference=photo.file_reference,
+                                thumb_size=best_photo_size.type
+                            )
+                            file_data = b""
+                            offset = 0
+                            limit = 524288
+                            while True:
+                                chunk = await bot.invoke(
+                                    functions.upload.GetFile(
+                                        location=location,
+                                        offset=offset,
+                                        limit=limit,
+                                        precise=True,
+                                        cdn_supported=True
+                                    )
+                                )
+                                if not chunk.bytes:
+                                    break
+                                file_data += chunk.bytes
+                                offset += len(chunk.bytes)
+                                expected = getattr(best_photo_size, 'size', 0)
+                                if expected > 0 and len(file_data) >= expected:
+                                    break
+                            if file_data:
+                                filename = f"profile_{entity_id}_full.jpg"
+                                filepath = f"{TEMP_IMAGES_DIR}/{filename}"
+                                with open(filepath, "wb") as f:
+                                    f.write(file_data)
+                                asyncio.create_task(delete_image_after_delay(filepath, 45))
+                                return (str(request.url_for('temp_images', path=filename)), filepath)
+                        except Exception as img_err:
+                            print(f"Raw photo size download error: {img_err}")
         except Exception as e:
             print(f"GetUserPhotos exception: {e}")
 
